@@ -4,6 +4,7 @@ using JoDentify.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace JoDentify.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251101151718_AddClinicServiceTable")]
+    partial class AddClinicServiceTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -248,118 +251,6 @@ namespace JoDentify.Infrastructure.Migrations
                     b.ToTable("ClinicServices");
                 });
 
-            modelBuilder.Entity("JoDentify.Core.Invoice", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("AmountPaid")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<Guid?>("AppointmentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ClinicId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("IssueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AppointmentId");
-
-                    b.HasIndex("ClinicId");
-
-                    b.HasIndex("PatientId");
-
-                    b.ToTable("Invoices");
-                });
-
-            modelBuilder.Entity("JoDentify.Core.InvoiceItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ClinicId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ClinicServiceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("InvoiceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ItemName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TotalPrice")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClinicId");
-
-                    b.HasIndex("ClinicServiceId");
-
-                    b.HasIndex("InvoiceId");
-
-                    b.ToTable("InvoiceItems");
-                });
-
             modelBuilder.Entity("JoDentify.Core.Patient", b =>
                 {
                     b.Property<Guid>("Id")
@@ -418,55 +309,6 @@ namespace JoDentify.Infrastructure.Migrations
                     b.HasIndex("ClinicId");
 
                     b.ToTable("Patients");
-                });
-
-            modelBuilder.Entity("JoDentify.Core.PaymentTransaction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<Guid>("ClinicId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("InvoiceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime>("PaymentDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClinicId");
-
-                    b.HasIndex("InvoiceId");
-
-                    b.ToTable("PaymentTransactions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -661,59 +503,6 @@ namespace JoDentify.Infrastructure.Migrations
                     b.Navigation("Clinic");
                 });
 
-            modelBuilder.Entity("JoDentify.Core.Invoice", b =>
-                {
-                    b.HasOne("JoDentify.Core.Appointment", "Appointment")
-                        .WithMany("Invoices")
-                        .HasForeignKey("AppointmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("JoDentify.Core.Clinic", "Clinic")
-                        .WithMany("Invoices")
-                        .HasForeignKey("ClinicId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("JoDentify.Core.Patient", "Patient")
-                        .WithMany("Invoices")
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Appointment");
-
-                    b.Navigation("Clinic");
-
-                    b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("JoDentify.Core.InvoiceItem", b =>
-                {
-                    b.HasOne("JoDentify.Core.Clinic", "Clinic")
-                        .WithMany("InvoiceItems")
-                        .HasForeignKey("ClinicId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("JoDentify.Core.ClinicService", "ClinicService")
-                        .WithMany("InvoiceItems")
-                        .HasForeignKey("ClinicServiceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("JoDentify.Core.Invoice", "Invoice")
-                        .WithMany("InvoiceItems")
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Clinic");
-
-                    b.Navigation("ClinicService");
-
-                    b.Navigation("Invoice");
-                });
-
             modelBuilder.Entity("JoDentify.Core.Patient", b =>
                 {
                     b.HasOne("JoDentify.Core.Clinic", "Clinic")
@@ -723,25 +512,6 @@ namespace JoDentify.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Clinic");
-                });
-
-            modelBuilder.Entity("JoDentify.Core.PaymentTransaction", b =>
-                {
-                    b.HasOne("JoDentify.Core.Clinic", "Clinic")
-                        .WithMany("PaymentTransactions")
-                        .HasForeignKey("ClinicId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("JoDentify.Core.Invoice", "Invoice")
-                        .WithMany("PaymentTransactions")
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Clinic");
-
-                    b.Navigation("Invoice");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -800,45 +570,20 @@ namespace JoDentify.Infrastructure.Migrations
                     b.Navigation("AppointmentsAsDoctor");
                 });
 
-            modelBuilder.Entity("JoDentify.Core.Appointment", b =>
-                {
-                    b.Navigation("Invoices");
-                });
-
             modelBuilder.Entity("JoDentify.Core.Clinic", b =>
                 {
                     b.Navigation("Appointments");
 
                     b.Navigation("ClinicServices");
 
-                    b.Navigation("InvoiceItems");
-
-                    b.Navigation("Invoices");
-
                     b.Navigation("Patients");
 
-                    b.Navigation("PaymentTransactions");
-
                     b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("JoDentify.Core.ClinicService", b =>
-                {
-                    b.Navigation("InvoiceItems");
-                });
-
-            modelBuilder.Entity("JoDentify.Core.Invoice", b =>
-                {
-                    b.Navigation("InvoiceItems");
-
-                    b.Navigation("PaymentTransactions");
                 });
 
             modelBuilder.Entity("JoDentify.Core.Patient", b =>
                 {
                     b.Navigation("Appointments");
-
-                    b.Navigation("Invoices");
                 });
 #pragma warning restore 612, 618
         }

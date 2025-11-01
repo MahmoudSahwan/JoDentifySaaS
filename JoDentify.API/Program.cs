@@ -1,4 +1,5 @@
 ﻿using JoDentify.Application.Interfaces;
+using System.Text.Json.Serialization;
 using JoDentify.Application.Mappings;
 using JoDentify.Application.Services;
 using JoDentify.Core;
@@ -13,16 +14,13 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. جلب الـ Connection String ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-// --- 2. إعداد الـ DbContext ---
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// --- 3. إعداد الـ Identity ---
-// بنعرفه إننا هنستخدم ApplicationUser
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.SignIn.RequireConfirmedAccount = false;
@@ -36,7 +34,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// --- 4. إعداد الـ JWT Authentication ---
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -45,7 +42,7 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.SaveToken = true;
-    options.RequireHttpsMetadata = false; // في الـ Development بس
+    options.RequireHttpsMetadata = false; 
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -54,7 +51,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["JWT:Issuer"],
         ValidAudience = builder.Configuration["JWT:Audience"],
-        // تم التعديل هنا: إضافة ! عشان نحل الـ Warning
+       
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Key"]!))
     };
 });
@@ -65,14 +62,19 @@ builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IPatientService, PatientService>();
+builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+builder.Services.AddScoped<IClinicServiceService, ClinicServiceService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
 
-// --- 7. إعداد الـ Swagger (عشان نقدر نعمل Test للـ API) ---
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // تعريف الـ Security Scheme (عشان نقدر نبعت الـ Token)
+    
     options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
@@ -82,7 +84,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = JwtBearerDefaults.AuthenticationScheme
     });
 
-    // إضافة الـ Requirement
+   
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -99,10 +101,15 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// إضافة الـ Controllers
-builder.Services.AddControllers();
 
-// إضافة CORS عشان الـ Angular (الـ Frontend) يقدر يكلمنا
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
@@ -121,7 +128,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseCors("AllowSpecificOrigin"); 
 

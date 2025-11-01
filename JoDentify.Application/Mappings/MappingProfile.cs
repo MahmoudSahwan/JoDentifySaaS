@@ -1,27 +1,46 @@
 ﻿using AutoMapper;
 using JoDentify.Application.DTOs.Auth;
+using JoDentify.Application.DTOs.Patient;
+using JoDentify.Application.DTOs.Appointment;
+using JoDentify.Application.DTOs.ClinicService;
+using JoDentify.Application.DTOs.Billing;
+using JoDentify.Application.DTOs.Dashboard;
 using JoDentify.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace JoDentify.Application.Mappings
 {
-    // ده الكلاس اللي فيه "خريطة" التحويل
     public class MappingProfile : Profile
     {
         public MappingProfile()
         {
-            // هنا بنعرف الـ AutoMapper
-            // بنقوله: إزاي تحول من RegisterDto (مصدر) إلى ApplicationUser (هدف)
             CreateMap<RegisterDto, ApplicationUser>()
-                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.UserName))
-                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
-                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName));
-            // ملحوظة: مش بنعمل مابينج للـ Password لإن الـ Identity بيعملها Hash بطريقة خاصة
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Email));
+
+            CreateMap<Patient, PatientDto>()
+                .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender.ToString()));
+            CreateMap<CreatePatientDto, Patient>();
+
+            CreateMap<Appointment, AppointmentDto>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.PatientName, opt => opt.MapFrom(src => src.Patient.FullName))
+                .ForMember(dest => dest.DoctorName, opt => opt.MapFrom(src => src.Doctor.FullName));
+            CreateMap<CreateAppointmentDto, Appointment>();
+
+            CreateMap<ClinicService, ClinicServiceDto>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+            CreateMap<CreateUpdateClinicServiceDto, ClinicService>();
+
+            CreateMap<Invoice, InvoiceDto>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.PatientName, opt => opt.MapFrom(src => src.Patient.FullName));
+            CreateMap<InvoiceItem, InvoiceItemDto>();
+            CreateMap<PaymentTransaction, PaymentTransactionDto>()
+                .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod.ToString()));
+
+            CreateMap<CreateInvoiceItemDto, InvoiceItem>();
+            CreateMap<CreateInvoiceDto, Invoice>();
+
+            CreateMap<Patient, RecentPatientDto>();
         }
     }
 }
-

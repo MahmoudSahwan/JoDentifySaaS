@@ -1,30 +1,24 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace JoDentify.Core
 {
-    
     public abstract class BaseEntity
     {
-        [Key] 
-        public int Id { get; set; }
+        [Key]
+        public Guid Id { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
 
-        public bool IsDeleted { get; set; } = false;
-        public DateTime? DeletedAt { get; set; } 
-        // 2. ???? ??? Entity ???????? (???? ??? Multi-Tenancy)
-        // [Required] // ??????? ?????? ??? ???????
-        // public int ClinicId { get; set; } 
-        // ??????: ????? ClinicId ?????? ??? ???? ??? Clinic Entity ?????
-        // ???? ????? ????? ?? ??? circular dependency ?? ???????
-        // ?????? ????? ??? IsDeleted
-
-        
+      
+        public BaseEntity()
+        {
+            Id = Guid.NewGuid();
+            CreatedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+            IsDeleted = false;
+        }
     }
 }
-

@@ -47,7 +47,6 @@ namespace JoDentify.Application.Services
             }
         }
 
-        // --- (جديد) ---
         public async Task<PatientDetailsDto?> GetPatientDetailsAsync(Guid id)
         {
             CheckClinicAccess();
@@ -64,24 +63,20 @@ namespace JoDentify.Application.Services
 
             return _mapper.Map<PatientDetailsDto>(patient);
         }
-        // --- (نهاية الإضافة) ---
 
-        // --- (تعديل) ---
         public async Task<PatientDto?> CreatePatientAsync(CreateUpdatePatientDto createDto)
         {
             CheckClinicAccess();
-            // (هيستخدم المابينج الجديد)
             var patient = _mapper.Map<Patient>(createDto);
             patient.ClinicId = _clinicId.Value;
             patient.JoinDate = DateTime.UtcNow;
 
             await _context.Patients.AddAsync(patient);
             await _context.SaveChangesAsync();
-            return _mapper.Map<PatientDto>(patient); // (بيرجع DTO خفيف)
-            patient.JoinDate = DateTime.UtcNow; // أو DateTime.Now
+            return _mapper.Map<PatientDto>(patient); 
+            patient.JoinDate = DateTime.UtcNow; 
         }
 
-        // --- (تعديل) ---
         public async Task<PatientDto?> UpdatePatientAsync(Guid id, CreateUpdatePatientDto updateDto)
         {
             CheckClinicAccess();
@@ -90,13 +85,11 @@ namespace JoDentify.Application.Services
 
             if (patient == null) return null;
 
-            // (هيستخدم المابينج الجديد)
             _mapper.Map(updateDto, patient);
             await _context.SaveChangesAsync();
-            return _mapper.Map<PatientDto>(patient); // (بيرجع DTO خفيف)
+            return _mapper.Map<PatientDto>(patient); 
         }
 
-        // --- (جديد) ---
         public async Task<CreateUpdatePatientDto?> GetPatientForEditAsync(Guid id)
         {
             CheckClinicAccess();
@@ -104,10 +97,8 @@ namespace JoDentify.Application.Services
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == id && p.ClinicId == _clinicId.Value);
 
-            // (بيرجع DTO التقيل بتاع الفورم)
             return _mapper.Map<CreateUpdatePatientDto?>(patient);
         }
-        // --- (نهاية الإضافة) ---
 
         public async Task<bool> DeletePatientAsync(Guid id)
         {
@@ -122,8 +113,6 @@ namespace JoDentify.Application.Services
             return true;
         }
 
-        // (الدالة دي اتلغت، هنستخدم GetPatientForEditAsync بدالها)
-        // بس هنسيبها عشان لو كود قديم بيستخدمها
         public async Task<PatientDto?> GetPatientByIdAsync(Guid id)
         {
             CheckClinicAccess();

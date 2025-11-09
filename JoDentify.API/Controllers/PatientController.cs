@@ -95,8 +95,7 @@ namespace JoDentify.API.Controllers
             }
         }
 
-        // --- (تعديل) ---
-        // (بيستقبل DTO الجديد)
+  
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> UpdatePatient(Guid id, [FromBody] CreateUpdatePatientDto updateDto)
         {
@@ -118,7 +117,6 @@ namespace JoDentify.API.Controllers
                 return Unauthorized(new { message = ex.Message });
             }
         }
-        // --- (نهاية التعديل) ---
 
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> DeletePatient(Guid id)

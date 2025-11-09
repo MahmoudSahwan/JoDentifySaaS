@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace JoDentify.Application.DTOs.Patient
 {
-    // (ده الموديل اللي بيطابق الفورم الجديد)
     public class CreateUpdatePatientDto
     {
         // ===============================

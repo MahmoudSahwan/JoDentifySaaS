@@ -5,7 +5,6 @@ using System;
 
 namespace JoDentify.Application.DTOs.Patient
 {
-    // (ده الموديل اللي هيشيل كل داتا البروفايل)
     public class PatientDetailsDto
     {
         public Guid Id { get; set; }
@@ -28,10 +27,7 @@ namespace JoDentify.Application.DTOs.Patient
         public float? BloodSugar { get; set; }
         public float? Temperature { get; set; }
 
-        // (إلخ... ممكن نضيف أي خانات تانية من الموديل الرئيسي لو احتجنا)
-        // (ده مجرد مثال، إحنا هنستخدم CreateUpdatePatientDto تحت)
 
-        // (الداتا المرتبطة)
         public ICollection<AppointmentDto> Appointments { get; set; } = new List<AppointmentDto>();
         public ICollection<InvoiceDto> Invoices { get; set; } = new List<InvoiceDto>();
     }

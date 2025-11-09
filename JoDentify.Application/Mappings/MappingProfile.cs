@@ -1,5 +1,4 @@
-﻿// المسار: E:\JoDentifySaaS\JoDentify.Application\Mappings\MappingProfile.cs
-using AutoMapper;
+﻿using AutoMapper;
 using JoDentify.Application.DTOs.Auth;
 using JoDentify.Application.DTOs.Patient;
 using JoDentify.Application.DTOs.Appointment;
@@ -17,29 +16,25 @@ namespace JoDentify.Application.Mappings
             CreateMap<RegisterDto, ApplicationUser>()
                 .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Email));
 
-            // --- (تعديلات الـ Patient) ---
             CreateMap<Patient, PatientDto>()
-                // (ده السطر اللي هيحل 500 GET)
                 .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender.ToString()))
-                .ForMember(dest => dest.JoinDate, opt => opt.MapFrom(src => src.JoinDate.ToString("o")))
-                .ForMember(dest => dest.CurrentMedications, opt => opt.MapFrom(src => src.CurrentMedications))
-    .ForMember(dest => dest.TreatmentPlan, opt => opt.MapFrom(src => src.TreatmentPlan))
-    .ForMember(dest => dest.DentalHistory, opt => opt.MapFrom(src => src.DentalHistory))
-    .ForMember(dest => dest.DentistNotes, opt => opt.MapFrom(src => src.DentistNotes))
-    .ForMember(dest => dest.HeartRate, opt => opt.MapFrom(src => src.HeartRate))
-    .ForMember(dest => dest.BloodPressure, opt => opt.MapFrom(src => src.BloodPressure))
-    .ForMember(dest => dest.BloodSugar, opt => opt.MapFrom(src => src.BloodSugar))
-    .ForMember(dest => dest.Temperature, opt => opt.MapFrom(src => src.Temperature));
+                .ForMember(dest => dest.JoinDate, opt => opt.MapFrom(src => src.JoinDate.ToString("o")));
 
             CreateMap<CreateUpdatePatientDto, Patient>()
-                // (ده السطر اللي هيحل 500 POST)
                 .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => (Gender)src.Gender));
 
             CreateMap<Patient, CreateUpdatePatientDto>();
 
             CreateMap<Patient, PatientDetailsDto>()
-                .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender.ToString()));
-            // --- (نهاية التعديلات) ---
+                .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender.ToString()))
+                .ForMember(dest => dest.CurrentMedications, opt => opt.MapFrom(src => src.CurrentMedications))
+                .ForMember(dest => dest.TreatmentPlan, opt => opt.MapFrom(src => src.TreatmentPlan))
+                .ForMember(dest => dest.DentalHistory, opt => opt.MapFrom(src => src.DentalHistory))
+                .ForMember(dest => dest.DentistNotes, opt => opt.MapFrom(src => src.DentistNotes))
+                .ForMember(dest => dest.HeartRate, opt => opt.MapFrom(src => src.HeartRate))
+                .ForMember(dest => dest.BloodPressure, opt => opt.MapFrom(src => src.BloodPressure))
+                .ForMember(dest => dest.BloodSugar, opt => opt.MapFrom(src => src.BloodSugar))
+                .ForMember(dest => dest.Temperature, opt => opt.MapFrom(src => src.Temperature));
 
 
             CreateMap<Appointment, AppointmentDto>()

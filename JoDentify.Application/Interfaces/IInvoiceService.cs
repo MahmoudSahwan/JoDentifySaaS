@@ -8,5 +8,7 @@ namespace JoDentify.Application.Interfaces
         Task<IEnumerable<InvoiceDto>> GetAllInvoicesForClinicAsync();
         Task<InvoiceDto?> GetInvoiceByIdAsync(Guid invoiceId);
         Task<InvoiceDto?> AddPaymentAsync(Guid invoiceId, CreatePaymentDto paymentDto);
+        Task<InvoiceDto?> UpdateInvoiceAsync(Guid invoiceId, CreateInvoiceDto updateDto);
+
     }
 }

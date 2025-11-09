@@ -1,3 +1,5 @@
+﻿// المسار: E:\JoDentifySaaS\JoDentify.Application\DTOs\Billing\InvoiceDto.cs
+
 namespace JoDentify.Application.DTOs.Billing
 {
     public class InvoiceDto
@@ -13,7 +15,11 @@ namespace JoDentify.Application.DTOs.Billing
 
         public DateTime IssueDate { get; set; }
         public DateTime? DueDate { get; set; }
-        public string Status { get; set; } = string.Empty;
+
+        // --- (هنا التعديل اللي هيحل مشكلة "الحالة الفاضية") ---
+        public int Status { get; set; } // (غيرناها من string لـ int)
+                                        // --- (نهاية التعديل) ---
+
         public string Notes { get; set; } = string.Empty;
 
         public ICollection<InvoiceItemDto> InvoiceItems { get; set; } = new List<InvoiceItemDto>();

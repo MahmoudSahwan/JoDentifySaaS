@@ -1,15 +1,20 @@
+﻿using System.Collections.Generic;
+
 namespace JoDentify.Application.DTOs.Dashboard
 {
     public class DashboardStatsDto
     {
+        // (1. الكروت اللي فوق)
+        public int VisitorsToday { get; set; }
         public int TotalPatients { get; set; }
-        public int NewPatientsThisMonth { get; set; }
+        public int ApptConfirmation { get; set; }
+        public decimal OverduePayment { get; set; }
 
-        public int TodayAppointments { get; set; }
-        public int UpcomingAppointments { get; set; }
+        // (2. الرسوم البيانية)
+        public List<ChartDataDto> PatientStats { get; set; } = new List<ChartDataDto>(); // (لـ Pie Chart)
+        public List<ChartDataDto> RevenueStats { get; set; } = new List<ChartDataDto>(); // (لـ Line Chart)
 
-        public decimal TotalRevenue { get; set; }
-        public decimal MonthlyRevenue { get; set; }
-        public decimal TotalOutstanding { get; set; }
+        // (3. الجدول)
+        public List<RecentAppointmentDto> RecentAppointments { get; set; } = new List<RecentAppointmentDto>();
     }
 }

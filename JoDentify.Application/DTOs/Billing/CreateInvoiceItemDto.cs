@@ -1,17 +1,18 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace JoDentify.Application.DTOs.Billing
 {
     public class CreateInvoiceItemDto
     {
-        [Required]
-        public Guid ClinicServiceId { get; set; }
+        // --- (ده أهم تعديل) ---
+        [Required(ErrorMessage = "ClinicServiceId is required.")]
+        public Guid ClinicServiceId { get; set; } // <-- (الاسم ده لازم يطابق الفرونت إند)
 
-        [Required]
-        [Range(1, 100, ErrorMessage = "Quantity must be at least 1.")]
-        public int Quantity { get; set; } = 1;
+        [Required(ErrorMessage = "Quantity is required.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1.")]
+        public int Quantity { get; set; }
 
-        [Range(0, 1_000_000, ErrorMessage = "Unit price must be a positive number.")]
+        // السطر ده اختياري (زي ما هو عندك)
         public decimal? UnitPriceOverride { get; set; }
     }
 }

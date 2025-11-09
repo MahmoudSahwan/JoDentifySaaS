@@ -11,10 +11,14 @@ namespace JoDentify.Infrastructure.Data
         public DbSet<Clinic> Clinics { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<ClinicService> ClinicServices { get; set; }
-
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
+
+        // --- (جديد) ---
+        // (إضافة الجدول الجديد بتاع ملفات المرضى)
+        public DbSet<PatientFile> PatientFiles { get; set; }
+        // --- (نهاية الإضافة) ---
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
@@ -51,6 +55,27 @@ namespace JoDentify.Infrastructure.Data
                  .HasConversion<string>()
                  .HasMaxLength(10);
             });
+
+            // --- (جديد) ---
+            // (إضافة العلاقات بتاعة الملفات)
+            builder.Entity<PatientFile>(e =>
+            {
+                // (لو المريض اتمسح، امسح كل ملفاته)
+                e.HasOne(pf => pf.Patient)
+                 .WithMany(p => p.Files)
+                 .HasForeignKey(pf => pf.PatientId)
+                 .IsRequired()
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // (لو العيادة اتمسحت، مينفعش تمسح الملفات لوحدها)
+                // (ده بيمنع "multiple cascade paths" error)
+                e.HasOne(pf => pf.Clinic)
+                 .WithMany() // (مفيش علاقة راجعة من العيادة للملفات)
+                 .HasForeignKey(pf => pf.ClinicId)
+                 .IsRequired()
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+            // --- (نهاية الإضافة) ---
 
             builder.Entity<Appointment>(e =>
             {
@@ -109,10 +134,7 @@ namespace JoDentify.Infrastructure.Data
                  .WithMany(p => p.Invoices)
                  .HasForeignKey(i => i.PatientId)
                  .IsRequired()
-                 // ---!!! ده السطر اللي اتصلح !!!---
-                 // (غيرنا Cascade لـ Restrict عشان نكسر الدايرة)
                  .OnDelete(DeleteBehavior.Restrict);
-                // ---!!! نهاية التعديل !!!---
 
                 e.HasOne(i => i.Appointment)
                  .WithMany(a => a.Invoices)

@@ -1,11 +1,12 @@
-using JoDentify.Application.DTOs.Patient;
+﻿using JoDentify.Application.DTOs.Patient;
 using JoDentify.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization; 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace JoDentify.API.Controllers
 {
-   
     [Authorize]
     [Route("api/patients")]
     [ApiController]
@@ -18,71 +19,123 @@ namespace JoDentify.API.Controllers
             _patientService = patientService;
         }
 
-    
+        // --- (جديد) ---
+        [HttpGet("{id:guid}/details")]
+        public async Task<IActionResult> GetPatientDetails(Guid id)
+        {
+            try
+            {
+                var patientDetails = await _patientService.GetPatientDetailsAsync(id);
+                if (patientDetails == null)
+                {
+                    return NotFound();
+                }
+                return Ok(patientDetails);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+        }
+        // --- (نهاية الإضافة) ---
+
+        // --- (تعديل) ---
+        // (الدالة دي دلوقتي بترجع الفورم التقيل عشان التعديل)
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetPatientForEdit(Guid id)
+        {
+            try
+            {
+                var patientDto = await _patientService.GetPatientForEditAsync(id);
+                if (patientDto == null)
+                {
+                    return NotFound();
+                }
+                return Ok(patientDto);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+        }
+        // --- (نهاية التعديل) ---
+
         [HttpGet]
         public async Task<IActionResult> GetAllPatients()
         {
-            
-            var patients = await _patientService.GetAllPatientsForClinicAsync();
-            return Ok(patients); 
-        }
-
-
-        [HttpGet("{id:guid}")]
-        public async Task<IActionResult> GetPatientById(Guid id)
-        {
-            
-            var patient = await _patientService.GetPatientByIdAsync(id);
-            if (patient == null)
+            try
             {
-                return NotFound(); 
+                var patients = await _patientService.GetAllPatientsAsync();
+                return Ok(patients);
             }
-            return Ok(patient);
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
         }
 
+        // --- (تعديل) ---
+        // (بيستقبل DTO الجديد)
         [HttpPost]
-        public async Task<IActionResult> CreatePatient([FromBody] CreatePatientDto createDto)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState); 
-            }
-
-            var newPatient = await _patientService.CreatePatientAsync(createDto);
-
-            return CreatedAtAction(nameof(GetPatientById), new { id = newPatient.Id }, newPatient);
-        }
-
-        
-        [HttpPut("{id:guid}")]
-        public async Task<IActionResult> UpdatePatient(Guid id, [FromBody] CreatePatientDto updateDto)
+        public async Task<IActionResult> CreatePatient([FromBody] CreateUpdatePatientDto createDto)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-
-            var updatedPatient = await _patientService.UpdatePatientAsync(id, updateDto);
-
-            if (updatedPatient == null)
+            try
             {
-                return NotFound(); 
+                var patientDto = await _patientService.CreatePatientAsync(createDto);
+                // (بيرجع DTO خفيف)
+                return CreatedAtAction(nameof(GetPatientDetails), new { id = patientDto.Id }, patientDto);
             }
-            return Ok(updatedPatient);
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
         }
 
-        
+        // --- (تعديل) ---
+        // (بيستقبل DTO الجديد)
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> UpdatePatient(Guid id, [FromBody] CreateUpdatePatientDto updateDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            try
+            {
+                var patientDto = await _patientService.UpdatePatientAsync(id, updateDto);
+                if (patientDto == null)
+                {
+                    return NotFound();
+                }
+                return Ok(patientDto);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+        }
+        // --- (نهاية التعديل) ---
+
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> DeletePatient(Guid id)
         {
-            var result = await _patientService.DeletePatientAsync(id);
-
-            if (!result)
+            try
             {
-                return NotFound(); 
+                var result = await _patientService.DeletePatientAsync(id);
+                if (!result)
+                {
+                    return NotFound();
+                }
+                return NoContent();
             }
-
-            return NoContent();
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
         }
     }
 }

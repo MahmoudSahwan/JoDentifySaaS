@@ -1,9 +1,9 @@
 namespace JoDentify.Core
 {
-  
     public enum Gender
     {
-        Male,   // 0
-        Female, // 1
+        Male,
+        Female,
+        Kids
     }
 }

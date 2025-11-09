@@ -1,145 +1,149 @@
-using AutoMapper;
+﻿using AutoMapper;
 using JoDentify.Application.DTOs.Patient;
 using JoDentify.Application.Interfaces;
 using JoDentify.Core;
-using JoDentify.Infrastructure.Data; 
-using Microsoft.AspNetCore.Http; 
-using Microsoft.EntityFrameworkCore; 
-using System.Security.Claims; 
+using JoDentify.Infrastructure.Data;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace JoDentify.Application.Services
 {
- 
     public class PatientService : IPatientService
     {
-        private readonly IRepository<Patient> _patientRepository; 
-        private readonly ApplicationDbContext _context; 
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly Guid? _clinicId;
 
         public PatientService(
-            IRepository<Patient> patientRepository,
             ApplicationDbContext context,
             IMapper mapper,
             IHttpContextAccessor httpContextAccessor)
         {
-            _patientRepository = patientRepository;
             _context = context;
             _mapper = mapper;
-            _httpContextAccessor = httpContextAccessor;
+
+            var user = httpContextAccessor.HttpContext?.User;
+            var clinicIdClaim = user?.Claims.FirstOrDefault(c => c.Type == "clinicId");
+            if (clinicIdClaim != null && Guid.TryParse(clinicIdClaim.Value, out Guid clinicId))
+            {
+                _clinicId = clinicId;
+            }
+            else
+            {
+                _clinicId = null;
+            }
         }
 
-        private Guid? GetClinicIdFromToken()
+        private void CheckClinicAccess()
         {
-            var user = _httpContextAccessor.HttpContext?.User;
-            if (user == null)
-            {
-                return null;
-            }
-
-            var clinicIdClaim = user.Claims.FirstOrDefault(c => c.Type == "clinicId");
-
-            if (clinicIdClaim == null)
-            {
-                return null;
-            }
-
-            if (Guid.TryParse(clinicIdClaim.Value, out Guid clinicId))
-            {
-                return clinicId;
-            }
-
-            return null;
-        }
-
-
-        public async Task<PatientDto> CreatePatientAsync(CreatePatientDto createDto)
-        {
-            var clinicId = GetClinicIdFromToken();
-            if (clinicId == null)
+            if (_clinicId == null)
             {
                 throw new UnauthorizedAccessException("User is not associated with a clinic.");
             }
-
-            var patient = _mapper.Map<Patient>(createDto);
-
-            patient.ClinicId = clinicId.Value;
-
-            await _patientRepository.AddAsync(patient);
-
-            return _mapper.Map<PatientDto>(patient);
         }
 
-        public async Task<IEnumerable<PatientDto>> GetAllPatientsForClinicAsync()
+        // --- (جديد) ---
+        public async Task<PatientDetailsDto?> GetPatientDetailsAsync(Guid id)
         {
-
-            var clinicId = GetClinicIdFromToken();
-            if (clinicId == null)
-            {
-      
-                return new List<PatientDto>();
-            }
-
-
-            var patients = await _context.Patients
-                                     .Where(p => p.ClinicId == clinicId.Value)
-                                     .ToListAsync();
-
-            return _mapper.Map<IEnumerable<PatientDto>>(patients);
-        }
-
-        public async Task<PatientDto?> GetPatientByIdAsync(Guid patientId)
-        {
-            var clinicId = GetClinicIdFromToken();
-            if (clinicId == null) return null;
+            CheckClinicAccess();
+            var clinicId = _clinicId.Value;
 
             var patient = await _context.Patients
-                                    .FirstOrDefaultAsync(p =>
-                                        p.Id == patientId &&
-                                        p.ClinicId == clinicId.Value);
+                .AsNoTracking()
+                .Include(p => p.Appointments.OrderByDescending(a => a.StartTime))
+                    .ThenInclude(a => a.Doctor)
+                .Include(p => p.Invoices.OrderByDescending(i => i.IssueDate))
+                .FirstOrDefaultAsync(p => p.Id == id && p.ClinicId == clinicId);
+
+            if (patient == null) return null;
+
+            return _mapper.Map<PatientDetailsDto>(patient);
+        }
+        // --- (نهاية الإضافة) ---
+
+        // --- (تعديل) ---
+        public async Task<PatientDto?> CreatePatientAsync(CreateUpdatePatientDto createDto)
+        {
+            CheckClinicAccess();
+            // (هيستخدم المابينج الجديد)
+            var patient = _mapper.Map<Patient>(createDto);
+            patient.ClinicId = _clinicId.Value;
+            patient.JoinDate = DateTime.UtcNow;
+
+            await _context.Patients.AddAsync(patient);
+            await _context.SaveChangesAsync();
+            return _mapper.Map<PatientDto>(patient); // (بيرجع DTO خفيف)
+            patient.JoinDate = DateTime.UtcNow; // أو DateTime.Now
+        }
+
+        // --- (تعديل) ---
+        public async Task<PatientDto?> UpdatePatientAsync(Guid id, CreateUpdatePatientDto updateDto)
+        {
+            CheckClinicAccess();
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.Id == id && p.ClinicId == _clinicId.Value);
+
+            if (patient == null) return null;
+
+            // (هيستخدم المابينج الجديد)
+            _mapper.Map(updateDto, patient);
+            await _context.SaveChangesAsync();
+            return _mapper.Map<PatientDto>(patient); // (بيرجع DTO خفيف)
+        }
+
+        // --- (جديد) ---
+        public async Task<CreateUpdatePatientDto?> GetPatientForEditAsync(Guid id)
+        {
+            CheckClinicAccess();
+            var patient = await _context.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == id && p.ClinicId == _clinicId.Value);
+
+            // (بيرجع DTO التقيل بتاع الفورم)
+            return _mapper.Map<CreateUpdatePatientDto?>(patient);
+        }
+        // --- (نهاية الإضافة) ---
+
+        public async Task<bool> DeletePatientAsync(Guid id)
+        {
+            CheckClinicAccess();
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.Id == id && p.ClinicId == _clinicId.Value);
+
+            if (patient == null) return false;
+
+            _context.Patients.Remove(patient);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // (الدالة دي اتلغت، هنستخدم GetPatientForEditAsync بدالها)
+        // بس هنسيبها عشان لو كود قديم بيستخدمها
+        public async Task<PatientDto?> GetPatientByIdAsync(Guid id)
+        {
+            CheckClinicAccess();
+            var patient = await _context.Patients
+               .AsNoTracking()
+               .FirstOrDefaultAsync(p => p.Id == id && p.ClinicId == _clinicId.Value);
 
             return _mapper.Map<PatientDto?>(patient);
         }
 
-        public async Task<PatientDto?> UpdatePatientAsync(Guid patientId, CreatePatientDto updateDto)
+        public async Task<IEnumerable<PatientDto>> GetAllPatientsAsync()
         {
-            var clinicId = GetClinicIdFromToken();
-            if (clinicId == null) return null;
+            CheckClinicAccess();
+            var patients = await _context.Patients
+                .AsNoTracking()
+                .Where(p => p.ClinicId == _clinicId.Value)
+                .OrderByDescending(p => p.JoinDate)
+                .ToListAsync();
 
-            var patient = await _context.Patients
-                                    .FirstOrDefaultAsync(p =>
-                                        p.Id == patientId &&
-                                        p.ClinicId == clinicId.Value);
-
-            if (patient == null)
-            {
-                return null;
-            }
-
-            _mapper.Map(updateDto, patient);
-
-            await _patientRepository.UpdateAsync(patient);
-
-            return _mapper.Map<PatientDto>(patient);
-        }
-
-        public async Task<bool> DeletePatientAsync(Guid patientId)
-        {
-            var clinicId = GetClinicIdFromToken();
-            if (clinicId == null) return false;
-
-            var patient = await _context.Patients
-                                    .FirstOrDefaultAsync(p =>
-                                        p.Id == patientId &&
-                                        p.ClinicId == clinicId.Value);
-
-            if (patient == null)
-            {
-                return false;
-            }
-
-            await _patientRepository.DeleteAsync(patient.Id);
-            return true;
+            return _mapper.Map<IEnumerable<PatientDto>>(patients);
         }
     }
 }

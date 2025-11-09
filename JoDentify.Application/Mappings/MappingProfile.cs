@@ -1,10 +1,11 @@
-﻿using AutoMapper;
+﻿// المسار: E:\JoDentifySaaS\JoDentify.Application\Mappings\MappingProfile.cs
+using AutoMapper;
 using JoDentify.Application.DTOs.Auth;
 using JoDentify.Application.DTOs.Patient;
 using JoDentify.Application.DTOs.Appointment;
+using JoDentify.Application.DTOs.User;
 using JoDentify.Application.DTOs.ClinicService;
 using JoDentify.Application.DTOs.Billing;
-using JoDentify.Application.DTOs.Dashboard;
 using JoDentify.Core;
 
 namespace JoDentify.Application.Mappings
@@ -16,9 +17,30 @@ namespace JoDentify.Application.Mappings
             CreateMap<RegisterDto, ApplicationUser>()
                 .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Email));
 
+            // --- (تعديلات الـ Patient) ---
             CreateMap<Patient, PatientDto>()
+                // (ده السطر اللي هيحل 500 GET)
+                .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender.ToString()))
+                .ForMember(dest => dest.JoinDate, opt => opt.MapFrom(src => src.JoinDate.ToString("o")))
+                .ForMember(dest => dest.CurrentMedications, opt => opt.MapFrom(src => src.CurrentMedications))
+    .ForMember(dest => dest.TreatmentPlan, opt => opt.MapFrom(src => src.TreatmentPlan))
+    .ForMember(dest => dest.DentalHistory, opt => opt.MapFrom(src => src.DentalHistory))
+    .ForMember(dest => dest.DentistNotes, opt => opt.MapFrom(src => src.DentistNotes))
+    .ForMember(dest => dest.HeartRate, opt => opt.MapFrom(src => src.HeartRate))
+    .ForMember(dest => dest.BloodPressure, opt => opt.MapFrom(src => src.BloodPressure))
+    .ForMember(dest => dest.BloodSugar, opt => opt.MapFrom(src => src.BloodSugar))
+    .ForMember(dest => dest.Temperature, opt => opt.MapFrom(src => src.Temperature));
+
+            CreateMap<CreateUpdatePatientDto, Patient>()
+                // (ده السطر اللي هيحل 500 POST)
+                .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => (Gender)src.Gender));
+
+            CreateMap<Patient, CreateUpdatePatientDto>();
+
+            CreateMap<Patient, PatientDetailsDto>()
                 .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender.ToString()));
-            CreateMap<CreatePatientDto, Patient>();
+            // --- (نهاية التعديلات) ---
+
 
             CreateMap<Appointment, AppointmentDto>()
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
@@ -26,21 +48,22 @@ namespace JoDentify.Application.Mappings
                 .ForMember(dest => dest.DoctorName, opt => opt.MapFrom(src => src.Doctor.FullName));
             CreateMap<CreateAppointmentDto, Appointment>();
 
+            CreateMap<ApplicationUser, UserDto>();
+
             CreateMap<ClinicService, ClinicServiceDto>()
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
             CreateMap<CreateUpdateClinicServiceDto, ClinicService>();
 
             CreateMap<Invoice, InvoiceDto>()
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => (int)src.Status))
                 .ForMember(dest => dest.PatientName, opt => opt.MapFrom(src => src.Patient.FullName));
+
             CreateMap<InvoiceItem, InvoiceItemDto>();
             CreateMap<PaymentTransaction, PaymentTransactionDto>()
                 .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod.ToString()));
 
-            CreateMap<CreateInvoiceItemDto, InvoiceItem>();
             CreateMap<CreateInvoiceDto, Invoice>();
-
-            CreateMap<Patient, RecentPatientDto>();
+            CreateMap<CreatePaymentDto, PaymentTransaction>();
         }
     }
 }

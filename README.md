@@ -90,6 +90,7 @@ Tools: AutoMapper (للتحويل بين DTOs و Entities)
 نفذ الأمر ده:
 
 Bash
+cd E:\JoDentifySaaS
 
 dotnet run --project JoDentify.API --launch-profile http
 افتح الـ Tester:

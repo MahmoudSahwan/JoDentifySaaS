@@ -1,4 +1,4 @@
-using JoDentify.Application.Interfaces;
+﻿using JoDentify.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,8 +16,10 @@ namespace JoDentify.API.Controllers
             _dashboardService = dashboardService;
         }
 
+        // --- (هنا التصليح) ---
+        // (غيرنا الدالة القديمة لـ "stats" عشان تطابق الكود الجديد)
         [HttpGet("stats")]
-        public async Task<IActionResult> GetDashboardStats()
+        public async Task<IActionResult> GetStats()
         {
             try
             {
@@ -29,19 +31,6 @@ namespace JoDentify.API.Controllers
                 return Unauthorized(new { message = ex.Message });
             }
         }
-
-        [HttpGet("recent-patients")]
-        public async Task<IActionResult> GetRecentPatients([FromQuery] int count = 5)
-        {
-            try
-            {
-                var patients = await _dashboardService.GetRecentPatientsAsync(count);
-                return Ok(patients);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
-        }
+        // --- (نهاية التصليح) ---
     }
 }

@@ -98,5 +98,33 @@ namespace JoDentify.API.Controllers
                 return Unauthorized(new { message = ex.Message });
             }
         }
+
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> UpdateInvoice(Guid id, [FromBody] CreateInvoiceDto updateDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var updatedInvoice = await _invoiceService.UpdateInvoiceAsync(id, updateDto);
+                if (updatedInvoice == null)
+                {
+                    return NotFound("Invoice not found or validation failed.");
+                }
+                return Ok(updatedInvoice);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
     }
 }

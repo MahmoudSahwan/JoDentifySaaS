@@ -1,17 +1,25 @@
-using JoDentify.Application.DTOs.Patient;
+﻿using JoDentify.Application.DTOs.Patient;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace JoDentify.Application.Interfaces
 {
     public interface IPatientService
     {
-        Task<IEnumerable<PatientDto>> GetAllPatientsForClinicAsync();
+        // (تعديل)
+        Task<PatientDto?> CreatePatientAsync(CreateUpdatePatientDto createDto);
+        // (تعديل)
+        Task<PatientDto?> UpdatePatientAsync(Guid id, CreateUpdatePatientDto updateDto);
 
-        Task<PatientDto?> GetPatientByIdAsync(Guid patientId);
+        Task<bool> DeletePatientAsync(Guid id);
 
-        Task<PatientDto> CreatePatientAsync(CreatePatientDto createDto);
+        // (تعديل) الدالة دي هترجع الفورم الجديد عشان "التعديل"
+        Task<CreateUpdatePatientDto?> GetPatientForEditAsync(Guid id);
 
-        Task<PatientDto?> UpdatePatientAsync(Guid patientId, CreatePatientDto updateDto);
+        Task<IEnumerable<PatientDto>> GetAllPatientsAsync();
 
-        Task<bool> DeletePatientAsync(Guid patientId);
+        // (جديد)
+        Task<PatientDetailsDto?> GetPatientDetailsAsync(Guid id);
     }
 }

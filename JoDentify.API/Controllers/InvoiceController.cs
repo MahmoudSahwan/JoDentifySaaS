@@ -1,130 +1,124 @@
-using JoDentify.Application.DTOs.Billing;
+﻿using Microsoft.AspNetCore.Mvc;
 using JoDentify.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using JoDentify.Application.DTOs.Billing;
+using System;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
-namespace JoDentify.API.Controllers
+namespace JoDentify.WebApi.Controllers
 {
-    [Authorize]
-    [Route("api/invoices")]
     [ApiController]
-    public class InvoiceController : ControllerBase
+    [Route("api/[controller]")]
+    public class InvoicesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
 
-        public InvoiceController(IInvoiceService invoiceService)
+        public InvoicesController(IInvoiceService invoiceService)
         {
             _invoiceService = invoiceService;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> CreateInvoice([FromBody] CreateInvoiceDto createDto)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            try
-            {
-                var newInvoice = await _invoiceService.CreateInvoiceAsync(createDto);
-                if (newInvoice == null)
-                {
-                    return BadRequest("Invalid PatientId, AppointmentId, or ServiceId for this clinic.");
-                }
-                return CreatedAtAction(nameof(GetInvoiceById), new { id = newInvoice.Id }, newInvoice);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
+        // GET: api/invoices
         [HttpGet]
-        public async Task<IActionResult> GetAllInvoices()
+        public async Task<ActionResult<IEnumerable<InvoiceDto>>> GetAllInvoices()
+        {
+            var invoices = await _invoiceService.GetAllInvoicesForClinicAsync();
+            return Ok(invoices);
+        }
+
+        // GET: api/invoices/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<InvoiceResponseDto>> GetInvoiceById(Guid id)
+        {
+            var invoice = await _invoiceService.GetInvoiceByIdAsync(id);
+            if (invoice == null) return NotFound();
+            return Ok(invoice);
+        }
+
+        // POST: api/invoices
+        [HttpPost]
+        public async Task<ActionResult<InvoiceResponseDto>> CreateInvoice(CreateInvoiceDto createDto)
+        {
+            var invoice = await _invoiceService.CreateInvoiceAsync(createDto);
+            if (invoice == null) return BadRequest("Failed to create invoice.");
+            return CreatedAtAction(nameof(GetInvoiceById), new { id = invoice.Id }, invoice);
+        }
+
+        // PUT: api/invoices/{id}
+        [HttpPut("{id}")]
+        public async Task<ActionResult<InvoiceResponseDto>> UpdateInvoice(Guid id, CreateInvoiceDto updateDto)
+        {
+            var invoice = await _invoiceService.UpdateInvoiceAsync(id, updateDto);
+            if (invoice == null) return NotFound();
+            return Ok(invoice);
+        }
+
+        // --- Routes للـ Payments (الناقصة) ---
+
+        // GET: api/invoices/{id}/payments
+        [HttpGet("{id}/payments")]
+        public async Task<ActionResult<IEnumerable<PaymentTransactionDto>>> GetPaymentsForInvoice(Guid id)
         {
             try
             {
-                var invoices = await _invoiceService.GetAllInvoicesForClinicAsync();
-                return Ok(invoices);
+                var payments = await _invoiceService.GetPaymentsForInvoiceAsync(id);
+                return Ok(payments);
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                return Unauthorized(new { message = ex.Message });
+                return Unauthorized("Access denied.");
             }
         }
 
-        [HttpGet("{id:guid}")]
-        public async Task<IActionResult> GetInvoiceById(Guid id)
+        // POST: api/invoices/{id}/payments
+        [HttpPost("{id}/payments")]
+        public async Task<ActionResult<InvoiceResponseDto>> AddPayment(Guid id, CreatePaymentDto paymentDto)
         {
-            try
-            {
-                var invoice = await _invoiceService.GetInvoiceByIdAsync(id);
-                if (invoice == null)
-                {
-                    return NotFound();
-                }
-                return Ok(invoice);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("{id:guid}/payments")]
-        public async Task<IActionResult> AddPayment(Guid id, [FromBody] CreatePaymentDto paymentDto)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             try
             {
                 var updatedInvoice = await _invoiceService.AddPaymentAsync(id, paymentDto);
-                if (updatedInvoice == null)
-                {
-                    return NotFound("Invoice not found or payment amount is invalid.");
-                }
+                if (updatedInvoice == null) return BadRequest("Failed to add payment.");
                 return Ok(updatedInvoice);
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                return Unauthorized(new { message = ex.Message });
+                return Unauthorized("Access denied.");
             }
         }
 
-        [HttpPut("{id:guid}")]
-        public async Task<IActionResult> UpdateInvoice(Guid id, [FromBody] CreateInvoiceDto updateDto)
+        // PUT: api/invoices/{id}/payments/{paymentId}
+        [HttpPut("{id}/payments/{paymentId}")]
+        public async Task<ActionResult<PaymentTransactionDto>> UpdatePayment(Guid id, Guid paymentId, CreatePaymentDto paymentDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             try
             {
-                var updatedInvoice = await _invoiceService.UpdateInvoiceAsync(id, updateDto);
-                if (updatedInvoice == null)
-                {
-                    return NotFound("Invoice not found or validation failed.");
-                }
-                return Ok(updatedInvoice);
+                var updatedPayment = await _invoiceService.UpdatePaymentAsync(id, paymentId, paymentDto);
+                if (updatedPayment == null) return NotFound("Payment not found.");
+                return Ok(updatedPayment);
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                return Unauthorized(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
+                return Unauthorized("Access denied.");
             }
         }
 
+        // DELETE: api/invoices/{id}/payments/{paymentId}
+        [HttpDelete("{id}/payments/{paymentId}")]
+        public async Task<IActionResult> DeletePayment(Guid id, Guid paymentId)
+        {
+            try
+            {
+                await _invoiceService.DeletePaymentAsync(id, paymentId);
+                return NoContent();
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound("Payment not found.");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized("Access denied.");
+            }
+        }
     }
 }

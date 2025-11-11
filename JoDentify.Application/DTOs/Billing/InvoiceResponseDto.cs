@@ -1,11 +1,11 @@
-﻿// المسار: JoDentify.Application/DTOs/Billing/InvoiceDto.cs
+﻿// المسار: JoDentify.Application/DTOs/Billing/InvoiceResponseDto.cs
 
 using System;
 using System.Collections.Generic;
 
 namespace JoDentify.Application.DTOs.Billing
 {
-    public class InvoiceDto
+    public class InvoiceResponseDto
     {
         public Guid Id { get; set; }
         public Guid PatientId { get; set; }
@@ -19,11 +19,11 @@ namespace JoDentify.Application.DTOs.Billing
         public DateTime IssueDate { get; set; }
         public DateTime? DueDate { get; set; }
 
-        public int Status { get; set; } // int للتوافق مع InvoiceStatus
+        public int Status { get; set; }
 
         public string Notes { get; set; } = string.Empty;
 
-        public ICollection<InvoiceItemDto> InvoiceItems { get; set; } = new List<InvoiceItemDto>();
+        public ICollection<InvoiceItemResponseDto> InvoiceItems { get; set; } = new List<InvoiceItemResponseDto>();
         public ICollection<PaymentTransactionDto> PaymentTransactions { get; set; } = new List<PaymentTransactionDto>();
     }
 }

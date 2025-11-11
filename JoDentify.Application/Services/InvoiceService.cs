@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Globalization;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
 
 namespace JoDentify.Application.Services
 {
@@ -44,6 +48,7 @@ namespace JoDentify.Application.Services
             }
         }
 
+        // (دالة مساعدة لإرجاع DTO الكامل)
         private async Task<InvoiceDto?> GetFullInvoiceDto(Guid invoiceId)
         {
             var invoice = await _context.Invoices
@@ -53,10 +58,45 @@ namespace JoDentify.Application.Services
                 .Include(i => i.PaymentTransactions)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId && i.ClinicId == _clinicId.Value);
 
-            // (مهم) اتأكد إن الـ AutoMapper عندك بيحول (InvoiceStatus enum) لـ (int)
             return _mapper.Map<InvoiceDto?>(invoice);
         }
 
+        // (دالة مساعدة لإرجاع DTO لصفحة التحرير)
+        private async Task<InvoiceResponseDto?> GetFullInvoiceResponseDto(Guid invoiceId)
+        {
+            var invoice = await _context.Invoices
+               .AsNoTracking()
+               .Include(i => i.Patient)
+               .Include(i => i.InvoiceItems)
+               .FirstOrDefaultAsync(i => i.Id == invoiceId && i.ClinicId == _clinicId.Value);
+
+            if (invoice == null) return null;
+
+            return new InvoiceResponseDto
+            {
+                Id = invoice.Id,
+                PatientId = invoice.PatientId,
+                PatientName = invoice.Patient?.FullName ?? "N/A",
+                IssueDate = invoice.IssueDate,
+                DueDate = invoice.DueDate,
+                TotalAmount = invoice.TotalAmount,
+                AmountPaid = invoice.AmountPaid,
+                Status = (int)invoice.Status,
+                Notes = invoice.Notes,
+                InvoiceItems = invoice.InvoiceItems.Select(item => new InvoiceItemResponseDto
+                {
+                    Id = item.Id, // (إضافة ID)
+                    ClinicServiceId = item.ClinicServiceId,
+                    ItemName = item.ItemName,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    TotalPrice = item.TotalPrice
+                }).ToList(),
+                PaymentTransactions = new List<PaymentTransactionDto>() // (الفرونت إند سيطلبها بشكل منفصل)
+            };
+        }
+
+        // (دالة إنشاء فاتورة)
         public async Task<InvoiceDto?> CreateInvoiceAsync(CreateInvoiceDto createDto)
         {
             CheckClinicAccess();
@@ -64,30 +104,21 @@ namespace JoDentify.Application.Services
             var patientExists = await _context.Patients.AnyAsync(p => p.Id == createDto.PatientId && p.ClinicId == _clinicId.Value);
             if (!patientExists) return null;
 
-            if (createDto.AppointmentId.HasValue)
-            {
-                var appointmentExists = await _context.Appointments.AnyAsync(a => a.Id == createDto.AppointmentId.Value && a.ClinicId == _clinicId.Value);
-                if (!appointmentExists) return null;
-            }
-
             var invoice = _mapper.Map<Invoice>(createDto);
             invoice.ClinicId = _clinicId.Value;
-
-            invoice.AmountPaid = createDto.AmountPaid;
-            invoice.Status = (InvoiceStatus)createDto.Status;
+            invoice.Status = InvoiceStatus.Draft;
             invoice.TotalAmount = 0;
+            invoice.AmountPaid = 0; // (الدفعات تضاف لاحقاً)
 
             var invoiceItems = new List<InvoiceItem>();
-
             foreach (var itemDto in createDto.Items)
             {
                 var service = await _context.ClinicServices
                                     .AsNoTracking()
                                     .FirstOrDefaultAsync(s => s.Id == itemDto.ClinicServiceId && s.ClinicId == _clinicId.Value);
-
                 if (service == null)
                 {
-                    throw new InvalidOperationException($"Service with ID {itemDto.ClinicServiceId} not found for this clinic.");
+                    throw new InvalidOperationException($"Service with ID {itemDto.ClinicServiceId} not found.");
                 }
 
                 var unitPrice = itemDto.UnitPriceOverride ?? service.Price;
@@ -107,72 +138,42 @@ namespace JoDentify.Application.Services
                 invoice.TotalAmount += totalPrice;
             }
 
-            if (invoice.AmountPaid >= invoice.TotalAmount && invoice.TotalAmount > 0)
-            {
-                invoice.Status = InvoiceStatus.Paid;
-            }
-            else if (invoice.AmountPaid > 0)
-            {
-                invoice.Status = InvoiceStatus.PartiallyPaid;
-            }
-
-            // (جديد) لو فيه دفعة أولية، لازم نسجلها
-            if (invoice.AmountPaid > 0)
-            {
-                var transaction = new PaymentTransaction
-                {
-                    Invoice = invoice,
-                    Amount = invoice.AmountPaid,
-                    PaymentDate = DateTime.UtcNow,
-                    PaymentMethod = PaymentMethod.Cash, // (قيمة افتراضية)
-                    Notes = "Initial payment upon creation",
-                    ClinicId = _clinicId.Value
-                };
-                await _context.PaymentTransactions.AddAsync(transaction);
-            }
+            invoice.Status = RecalculateInvoiceStatus(invoice.TotalAmount, 0, (InvoiceStatus)createDto.Status);
 
             await _context.Invoices.AddAsync(invoice);
             await _context.InvoiceItems.AddRangeAsync(invoiceItems);
-
             await _context.SaveChangesAsync();
 
             return await GetFullInvoiceDto(invoice.Id);
         }
 
-        // --- (هنا التعديل اللي إنت عايزه) ---
+        // --- (هذا هو الإصلاح الأهم) ---
         public async Task<InvoiceDto?> UpdateInvoiceAsync(Guid invoiceId, CreateInvoiceDto updateDto)
         {
             CheckClinicAccess();
-
-            // (1) جيب الفاتورة القديمة
             var invoice = await _context.Invoices
                 .Include(i => i.InvoiceItems)
+                .Include(i => i.PaymentTransactions) // (مهم)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId && i.ClinicId == _clinicId.Value);
 
             if (invoice == null) return null;
 
-            // (2) احفظ القيمة القديمة للمدفوع
-            decimal previousAmountPaid = invoice.AmountPaid;
+            // (1) تحديث البيانات الأساسية (باستثناء الدفع والحالة)
+            invoice.PatientId = updateDto.PatientId;
+            invoice.IssueDate = updateDto.IssueDate.ToUniversalTime();
+            invoice.DueDate = updateDto.DueDate.HasValue ? updateDto.DueDate.Value.ToUniversalTime() : null;
+            invoice.Notes = updateDto.Notes;
 
-            // (3) حدث الداتا الأساسية
-            _mapper.Map(updateDto, invoice);
-            invoice.Status = (InvoiceStatus)updateDto.Status;
-
-            // (4) امسح البنود القديمة وضيف الجديدة
+            // (2) مسح البنود القديمة وإضافة الجديدة
             _context.InvoiceItems.RemoveRange(invoice.InvoiceItems);
-
-            invoice.TotalAmount = 0; // هنحسبه من الأول
+            invoice.TotalAmount = 0; // إعادة حساب الإجمالي
             var newInvoiceItems = new List<InvoiceItem>();
             foreach (var itemDto in updateDto.Items)
             {
                 var service = await _context.ClinicServices
                                     .AsNoTracking()
                                     .FirstOrDefaultAsync(s => s.Id == itemDto.ClinicServiceId && s.ClinicId == _clinicId.Value);
-
-                if (service == null)
-                {
-                    throw new InvalidOperationException($"Service with ID {itemDto.ClinicServiceId} not found for this clinic.");
-                }
+                if (service == null) throw new InvalidOperationException($"Service {itemDto.ClinicServiceId} not found.");
 
                 var unitPrice = itemDto.UnitPriceOverride ?? service.Price;
                 var totalPrice = unitPrice * itemDto.Quantity;
@@ -190,47 +191,27 @@ namespace JoDentify.Application.Services
                 newInvoiceItems.Add(invoiceItem);
                 invoice.TotalAmount += totalPrice;
             }
-
-            // (5) --- (اللوجيك الذكي بتاع الدفع) ---
-            // (هنا بنستخدم القيمة الجديدة اللي جاية من الفرونت)
-            invoice.AmountPaid = updateDto.AmountPaid;
-
-            // (احسب الفرق)
-            decimal paymentDifference = invoice.AmountPaid - previousAmountPaid;
-
-            // (لو الفرق بالموجب، يبقى هو ضاف دفعة جديدة)
-            if (paymentDifference > 0)
-            {
-                var transaction = new PaymentTransaction
-                {
-                    Invoice = invoice,
-                    Amount = paymentDifference, // (هنسجل "الفرق" بس)
-                    PaymentDate = DateTime.UtcNow,
-                    PaymentMethod = PaymentMethod.Cash, // (قيمة افتراضية)
-                    Notes = "Payment added during edit",
-                    ClinicId = _clinicId.Value
-                };
-                await _context.PaymentTransactions.AddAsync(transaction);
-            }
-            // (ملحوظة: لو الفرق بالسالب، اللوجيك ده هيتجاهله، وده صح محاسبياً)
-
-            // (6) ظبط الحالة النهائية
-            if (invoice.AmountPaid >= invoice.TotalAmount && invoice.TotalAmount > 0)
-            {
-                invoice.Status = InvoiceStatus.Paid;
-            }
-            else if (invoice.AmountPaid > 0)
-            {
-                invoice.Status = InvoiceStatus.PartiallyPaid;
-            }
-
             await _context.InvoiceItems.AddRangeAsync(newInvoiceItems);
-            await _context.SaveChangesAsync();
 
+            // (3) إعادة حساب المدفوع والحالة (بناءً على الدفعات الموجودة)
+            // (هذه الدالة "لا" تعدل الدفعات، هي فقط تعيد الحساب)
+            invoice.AmountPaid = invoice.PaymentTransactions.Sum(t => t.Amount);
+            invoice.Status = RecalculateInvoiceStatus(invoice.TotalAmount, invoice.AmountPaid, (InvoiceStatus)updateDto.Status);
+
+            await _context.SaveChangesAsync();
             return await GetFullInvoiceDto(invoiceId);
         }
 
-        // --- (باقي الدوال زي ما هي) ---
+        private InvoiceStatus RecalculateInvoiceStatus(decimal totalAmount, decimal amountPaid, InvoiceStatus desiredStatus)
+        {
+            if (desiredStatus == InvoiceStatus.Canceled) return InvoiceStatus.Canceled;
+            if (totalAmount == 0) return InvoiceStatus.Draft;
+            if (amountPaid >= totalAmount) return InvoiceStatus.Paid;
+            if (amountPaid > 0) return InvoiceStatus.PartiallyPaid;
+            // (لو الإجمالي أكبر من 0 والمدفوع 0)
+            return (desiredStatus == InvoiceStatus.Draft) ? InvoiceStatus.Draft : InvoiceStatus.Pending;
+        }
+
         public async Task<IEnumerable<InvoiceDto>> GetAllInvoicesForClinicAsync()
         {
             CheckClinicAccess();
@@ -242,12 +223,30 @@ namespace JoDentify.Application.Services
                                         .ToListAsync();
             return _mapper.Map<IEnumerable<InvoiceDto>>(invoices);
         }
-        public async Task<InvoiceDto?> GetInvoiceByIdAsync(Guid invoiceId)
+
+        // (إصلاح) تعديل نوع الإرجاع ليتطابق مع الإنترفيس
+        public async Task<InvoiceResponseDto?> GetInvoiceByIdAsync(Guid invoiceId)
         {
             CheckClinicAccess();
-            return await GetFullInvoiceDto(invoiceId);
+            return await GetFullInvoiceResponseDto(invoiceId);
         }
-        public async Task<InvoiceDto?> AddPaymentAsync(Guid invoiceId, CreatePaymentDto paymentDto)
+
+        // --- (دوال الدفعات الناقصة - تم إضافتها) ---
+        public async Task<IEnumerable<PaymentTransactionDto>> GetPaymentsForInvoiceAsync(Guid invoiceId)
+        {
+            CheckClinicAccess();
+            var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId && i.ClinicId == _clinicId.Value);
+            if (invoice == null) throw new UnauthorizedAccessException("Invoice not found or access denied.");
+
+            var payments = await _context.PaymentTransactions
+                .AsNoTracking()
+                .Where(p => p.InvoiceId == invoiceId)
+                .OrderByDescending(p => p.PaymentDate)
+                .ToListAsync();
+            return _mapper.Map<IEnumerable<PaymentTransactionDto>>(payments);
+        }
+
+        public async Task<InvoiceResponseDto?> AddPaymentAsync(Guid invoiceId, CreatePaymentDto paymentDto)
         {
             CheckClinicAccess();
             var invoice = await _context.Invoices
@@ -255,32 +254,77 @@ namespace JoDentify.Application.Services
                                             i.Id == invoiceId &&
                                             i.ClinicId == _clinicId.Value);
             if (invoice == null) return null;
-            var amountDue = invoice.TotalAmount - invoice.AmountPaid;
+
+            // (إعادة حساب المتبقي)
+            var amountPaid = await _context.PaymentTransactions
+                                .Where(p => p.InvoiceId == invoiceId)
+                                .SumAsync(p => p.Amount);
+            var amountDue = invoice.TotalAmount - amountPaid;
+
             if (paymentDto.Amount <= 0 || paymentDto.Amount > amountDue)
             {
                 return null;
             }
-            var transaction = new PaymentTransaction
-            {
-                InvoiceId = invoiceId,
-                Amount = paymentDto.Amount,
-                PaymentDate = paymentDto.PaymentDate,
-                PaymentMethod = paymentDto.PaymentMethod,
-                Notes = paymentDto.Notes,
-                ClinicId = _clinicId.Value
-            };
+            var transaction = _mapper.Map<PaymentTransaction>(paymentDto);
+            transaction.InvoiceId = invoiceId;
+            transaction.ClinicId = _clinicId.Value;
+
             await _context.PaymentTransactions.AddAsync(transaction);
-            invoice.AmountPaid += paymentDto.Amount;
-            if (invoice.AmountPaid == invoice.TotalAmount)
-            {
-                invoice.Status = InvoiceStatus.Paid;
-            }
-            else
-            {
-                invoice.Status = InvoiceStatus.PartiallyPaid;
-            }
+
+            // (تحديث الفاتورة)
+            invoice.AmountPaid = amountPaid + paymentDto.Amount;
+            invoice.Status = RecalculateInvoiceStatus(invoice.TotalAmount, invoice.AmountPaid, invoice.Status);
+
             await _context.SaveChangesAsync();
-            return await GetFullInvoiceDto(invoiceId);
+            return await GetFullInvoiceResponseDto(invoiceId);
+        }
+
+        public async Task<PaymentTransactionDto?> UpdatePaymentAsync(Guid invoiceId, Guid paymentId, CreatePaymentDto paymentDto)
+        {
+            CheckClinicAccess();
+            var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId && i.ClinicId == _clinicId.Value);
+            var payment = await _context.PaymentTransactions.FirstOrDefaultAsync(p => p.Id == paymentId && p.InvoiceId == invoiceId && p.ClinicId == _clinicId.Value);
+
+            if (invoice == null || payment == null) return null;
+
+            decimal oldAmount = payment.Amount;
+            _mapper.Map(paymentDto, payment); // (تحديث بيانات الدفعة)
+
+            await _context.SaveChangesAsync(); // (احفظ الدفعة أولاً)
+
+            // (إعادة حساب إجمالي الفاتورة)
+            var totalPaid = await _context.PaymentTransactions
+                                .Where(p => p.InvoiceId == invoiceId)
+                                .SumAsync(p => p.Amount);
+            invoice.AmountPaid = totalPaid;
+            invoice.Status = RecalculateInvoiceStatus(invoice.TotalAmount, invoice.AmountPaid, invoice.Status);
+
+            await _context.SaveChangesAsync(); // (احفظ الفاتورة)
+            return _mapper.Map<PaymentTransactionDto>(payment);
+        }
+
+        public async Task DeletePaymentAsync(Guid invoiceId, Guid paymentId)
+        {
+            CheckClinicAccess();
+            var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId && i.ClinicId == _clinicId.Value);
+            var payment = await _context.PaymentTransactions.FirstOrDefaultAsync(p => p.Id == paymentId && p.InvoiceId == invoiceId && p.ClinicId == _clinicId.Value);
+
+            if (invoice == null || payment == null)
+            {
+                throw new InvalidOperationException("Payment not found or access denied.");
+            }
+
+            _context.PaymentTransactions.Remove(payment);
+            await _context.SaveChangesAsync(); // (احذف الدفعة أولاً)
+
+            // (إعادة حساب إجمالي الفاتورة)
+            var totalPaid = await _context.PaymentTransactions
+                                .Where(p => p.InvoiceId == invoiceId)
+                                .SumAsync(p => p.Amount);
+            invoice.AmountPaid = totalPaid;
+            invoice.Status = RecalculateInvoiceStatus(invoice.TotalAmount, invoice.AmountPaid, invoice.Status);
+
+            await _context.SaveChangesAsync(); // (احفظ الفاتورة)
         }
     }
 }
